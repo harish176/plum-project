@@ -105,13 +105,30 @@ class ClassificationService:
         """
         amount_contexts = {}
         
+        # Apply OCR corrections to the text to match the corrected amounts
+        from utils.text_utils import TextProcessor
+        text_processor = TextProcessor()
+        corrected_text, corrections = text_processor.correct_ocr_digits(text)
+        
+        # Additional fix for percentage patterns (1% -> 10% in discount context)
+        if 'discount' in corrected_text.lower() and '1%' in corrected_text:
+            corrected_text = corrected_text.replace('1%', '10%')
+            corrections.append("Discount percentage: '1%' -> '10%'")
+        
+        # Fix common OCR errors for field names
+        corrected_text = corrected_text.replace('Du0:', 'Due:')
+        corrected_text = corrected_text.replace('Tota1:', 'Total:')
+        
+        # Use the corrected text for context detection
+        search_text = corrected_text
+        
         for amount in amounts:
             # Create patterns to find this amount in text with currency
             # Use word boundaries to avoid partial matches (e.g., "10" in "1000")
             amount_str = str(int(amount)) if amount.is_integer() else str(amount)
             amount_patterns = [
-                f"Rs.{amount_str}\\b",
-                f"Rs. {amount_str}\\b", 
+                f"Rs\\.{amount_str}\\b",
+                f"Rs\\. {amount_str}\\b", 
                 f"₹{amount_str}\\b",
                 f"₹ {amount_str}\\b",
                 f"\\b{amount_str}\\b",  # Add word boundaries to prevent partial matches
@@ -122,26 +139,26 @@ class ClassificationService:
             
             for pattern in amount_patterns:
                 # Find all occurrences of this pattern (use raw pattern, not escaped, for word boundaries)
-                for match in re.finditer(pattern, text, re.IGNORECASE):
+                for match in re.finditer(pattern, search_text, re.IGNORECASE):
                     # Get more focused context - look for sentence boundaries or line breaks
                     start = match.start()
                     end = match.end()
                     
                     # Extend backwards to find start of context
                     context_start = start
-                    while context_start > 0 and text[context_start - 1] not in ['\n', '.', '|']:
+                    while context_start > 0 and search_text[context_start - 1] not in ['\n', '.', '|']:
                         context_start -= 1
                         if start - context_start > 40:  # Limit backward search
                             break
                     
                     # Extend forwards to find end of context
                     context_end = end
-                    while context_end < len(text) and text[context_end] not in ['\n', '.', '|']:
+                    while context_end < len(search_text) and search_text[context_end] not in ['\n', '.', '|']:
                         context_end += 1
                         if context_end - end > 40:  # Limit forward search
                             break
                     
-                    context = text[context_start:context_end].strip()
+                    context = search_text[context_start:context_end].strip()
                     
                     # Score context quality
                     context_score = 0

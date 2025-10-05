@@ -44,8 +44,9 @@ class Settings:
     
     # Normalization Settings
     OCR_DIGIT_CORRECTIONS = {
-        "l": "1", "I": "1", "O": "0", "o": "0", "S": "5", "G": "6",
-        "T": "7", "B": "8", "g": "9", "Z": "2", "z": "2"
+        "l": "1", "I": "1", "O": "0", "o": "0", "S": "5", "s": "5", "G": "6",
+        "T": "7", "B": "8", "b": "6", "g": "9", "Z": "2", "z": "2",
+        "¢": "0", "@": "0", "e": "0", "c": "0"  # Common OCR misreads for 0
     }
     
     # Processing Thresholds

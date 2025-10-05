@@ -60,8 +60,13 @@ class OCRService:
             cleaned_text = text_processor.clean_text(text)
             logger.info(f"Processing text: {cleaned_text[:100]}...")
             
-            # Extract numeric tokens
-            numeric_tokens = text_processor.extract_numeric_tokens(cleaned_text)
+            # Apply OCR digit corrections (important for text input with OCR-like errors)
+            corrected_text, corrections = text_processor.correct_ocr_digits(cleaned_text)
+            if corrections:
+                logger.info(f"Applied OCR corrections: {corrections}")
+            
+            # Extract numeric tokens from corrected text
+            numeric_tokens = text_processor.extract_numeric_tokens(corrected_text)
             
             if not numeric_tokens:
                 return RawTokensResponse(

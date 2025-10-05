@@ -24,7 +24,7 @@ class TextProcessor:
         cleaned = re.sub(r'\s+', ' ', text.strip())
         
         # Remove special characters that might interfere with processing
-        cleaned = re.sub(r'[^\w\s\.\,\-\+\$₹€£\(\)\|\:]', ' ', cleaned)
+        cleaned = re.sub(r'[^\w\s\.\,\-\+\$₹€£\(\)\|\:%]', ' ', cleaned)
         
         # Normalize common separators
         cleaned = cleaned.replace('|', ' | ')
@@ -91,16 +91,32 @@ class TextProcessor:
             context = self._get_context(text, position, match.end())
             tokens.append((token, position, context))
         
-        # Remove duplicates by position
+        # Remove duplicates by position, preferring longer/more specific tokens
         unique_tokens = []
-        seen_positions = set()
+        position_groups = {}
         
+        # Group tokens by approximate position
         for token, position, context in tokens:
-            # Create a position range to avoid overlapping tokens
-            position_key = (position // 5) * 5  # Group nearby positions
-            if position_key not in seen_positions:
-                seen_positions.add(position_key)
-                unique_tokens.append((token, position, context))
+            position_key = (position // 5) * 5
+            if position_key not in position_groups:
+                position_groups[position_key] = []
+            position_groups[position_key].append((token, position, context))
+        
+        # For each position group, select the best token
+        for position_key, group_tokens in position_groups.items():
+            if len(group_tokens) == 1:
+                unique_tokens.append(group_tokens[0])
+            else:
+                # Prefer tokens with special characters (%, $, Rs, etc.) over plain numbers
+                special_tokens = [(t, p, c) for t, p, c in group_tokens if any(char in t for char in ['%', '$', '₹', 'Rs'])]
+                if special_tokens:
+                    # Among special tokens, prefer the longest
+                    best_token = max(special_tokens, key=lambda x: len(x[0]))
+                    unique_tokens.append(best_token)
+                else:
+                    # Among plain numbers, prefer the longest
+                    best_token = max(group_tokens, key=lambda x: len(x[0]))
+                    unique_tokens.append(best_token)
         
         return unique_tokens
     
@@ -123,6 +139,31 @@ class TextProcessor:
         corrected = text
         corrections = []
         
+        # First pass: correct obvious currency amount patterns
+        currency_patterns = [
+            # Handle patterns like Rs.150@ where @ represents 00
+            (r'Rs\.(\d+)[@]+', lambda m: f"Rs.{m.group(1)}00"),
+            # Handle patterns like Rs.1¢0, Rs.8@0, etc.
+            (r'Rs\.([lIoOsSbBgGzZ¢@ec]\d+)', lambda m: f"Rs.{self._correct_amount_string(m.group(1))}"),
+            (r'Rs\.(\d*[lIoOsSbBgGzZ¢@ec]+\d*)', lambda m: f"Rs.{self._correct_amount_string(m.group(1))}"),
+            (r'Rs\.(\d+[lIoOsSbBgGzZ¢@ec]+)', lambda m: f"Rs.{self._correct_amount_string(m.group(1))}"),
+            # Same for ₹ symbol
+            (r'₹(\d+)[@]+', lambda m: f"₹{m.group(1)}00"),
+            (r'₹([lIoOsSbBgGzZ¢@ec]\d+)', lambda m: f"₹{self._correct_amount_string(m.group(1))}"),
+            (r'₹(\d*[lIoOsSbBgGzZ¢@ec]+\d*)', lambda m: f"₹{self._correct_amount_string(m.group(1))}"),
+            (r'₹(\d+[lIoOsSbBgGzZ¢@ec]+)', lambda m: f"₹{self._correct_amount_string(m.group(1))}"),
+        ]
+        
+        for pattern, replacement in currency_patterns:
+            matches = list(re.finditer(pattern, corrected))
+            for match in reversed(matches):  # Process from end to avoid index issues
+                original = match.group()
+                new_value = replacement(match)
+                if original != new_value:
+                    corrected = corrected[:match.start()] + new_value + corrected[match.end():]
+                    corrections.append(f"Currency amount: '{original}' -> '{new_value}'")
+        
+        # Second pass: general word-based corrections
         for wrong_char, correct_char in self.digit_correction_map.items():
             if wrong_char in corrected:
                 # Only correct if it's in a numeric context
@@ -139,6 +180,13 @@ class TextProcessor:
         
         return corrected, corrections
     
+    def _correct_amount_string(self, amount_str: str) -> str:
+        """Correct OCR errors in an amount string"""
+        corrected = amount_str
+        for wrong_char, correct_char in self.digit_correction_map.items():
+            corrected = corrected.replace(wrong_char, correct_char)
+        return corrected
+    
     def _looks_numeric(self, word: str) -> bool:
         """
         Check if a word looks like it should be numeric.
@@ -149,6 +197,15 @@ class TextProcessor:
         Returns:
             True if word appears to be intended as numeric
         """
+        # Don't correct currency symbols
+        if word.lower() in ['rs', 'inr', 'usd', 'eur', 'gbp']:
+            return False
+        
+        # Don't correct common words that might contain s, o, etc.
+        common_words = ['total', 'hospital', 'patient', 'discount', 'consultation']
+        if word.lower() in common_words:
+            return False
+        
         # Count digits vs letters
         digits = sum(1 for c in word if c.isdigit())
         letters = sum(1 for c in word if c.isalpha())
