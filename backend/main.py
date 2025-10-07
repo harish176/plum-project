@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field
 from typing import List, Any
 import logging
 from services.pipeline_service import AmountDetectionPipeline
+from services.direct_extraction_service import DirectExtractionService
+from services.ocr_service import OCRService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -25,23 +27,23 @@ class HTTPValidationError(BaseModel):
     detail: List[ValidationError] = Field(..., description="List of validation errors")
 
 app = FastAPI(
-    title="🏥 AI Medical Bill Analyzer",
+    title="AI Medical Bill Analyzer",
     description="""
-    ## 🚀 Smart Amount Detection for Medical Documents
+    ## Smart Amount Detection for Medical Documents
     
     Upload your medical bills and get instant, accurate amount extraction powered by advanced AI and OCR technology.
     
-    ### ✨ Features:
-    - 📸 **Image Processing**: Upload medical bill images (PNG, JPG, PDF)
-    - 💰 **Smart Detection**: Automatically identifies totals, payments, due amounts
-    - 🌍 **Multi-Currency**: Supports INR, USD, EUR, GBP
-    - 🎯 **High Accuracy**: Advanced OCR with multiple enhancement techniques
-    - ⚡ **Fast Processing**: Get results in seconds
+    ### Features:
+    - **Image Processing**: Upload medical bill images (PNG, JPG, PDF)
+    - **Smart Detection**: Automatically identifies totals, payments, due amounts
+    - **Multi-Currency**: Supports INR, USD, EUR, GBP
+    - **High Accuracy**: Advanced OCR with multiple enhancement techniques
+    - **Fast Processing**: Get results in seconds
     
-    ### 🎨 How to Use:
-    1. Click on **"Extract Amounts from Image"** below
+    ### How to Use:
+    1. Click on "Extract Amounts from Image" below
     2. Upload your medical bill image
-    3. Click **"Execute"** and get instant results!
+    3. Click "Execute" and get instant results
     """,
     version="2.0.0",
     contact={
@@ -71,7 +73,7 @@ def custom_openapi():
         return app.openapi_schema
     
     openapi_schema = get_openapi(
-        title="🏥 AI Medical Bill Analyzer",
+        title="AI Medical Bill Analyzer",
         version="2.0.0",
         description=app.description,
         routes=app.routes,
@@ -108,9 +110,9 @@ async def custom_swagger_ui_html():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>🏥 AI Medical Bill Analyzer</title>
+        <title>AI Medical Bill Analyzer</title>
         <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@3.52.5/swagger-ui.css" />
-        <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏥</text></svg>" />
+        <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>+</text></svg>" />
         <style>
             /* Custom beautiful styling */
             body {
@@ -321,7 +323,7 @@ async def custom_swagger_ui_html():
                 supportedSubmitMethods: ['get', 'post', 'put', 'delete', 'patch'],
                 onComplete: function() {
                     // Add custom functionality after UI loads
-                    console.log('🏥 AI Medical Bill Analyzer Ready!');
+                    console.log('AI Medical Bill Analyzer Ready!');
                     
                     // Add welcome message
                     const infoSection = document.querySelector('.swagger-ui .info');
@@ -329,7 +331,7 @@ async def custom_swagger_ui_html():
                         const welcomeDiv = document.createElement('div');
                         welcomeDiv.innerHTML = `
                             <div style="background: linear-gradient(135deg, #4CAF50, #45a049); color: white; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center;">
-                                <h3 style="margin: 0; font-size: 1.3em;">🎉 Welcome to AI Medical Bill Analyzer!</h3>
+                                <h3 style="margin: 0; font-size: 1.3em;">Welcome to AI Medical Bill Analyzer!</h3>
                                 <p style="margin: 10px 0 0 0; opacity: 0.9;">Upload your medical bill and get instant, accurate amount extraction</p>
                             </div>
                         `;
@@ -362,22 +364,22 @@ async def redoc_html():
     """)
 
 @app.post("/extract-amounts-text", 
-          summary="📝 Extract Amounts from Text",
+          summary="Extract Amounts from Text",
           description="Parse medical bill text and extract financial amounts with smart categorization.",
           response_description="Returns currency, amounts array with types, and processing status",
-          tags=["💰 Amount Extraction"])
+          tags=["Amount Extraction"])
 async def extract_amounts_from_text(text: str = Body(..., media_type="text/plain", description="Raw medical bill text to process")):
     """
-    ## 📝 Extract Amounts from Plain Text
+    ## Extract Amounts from Plain Text
     
     Simply paste or type your medical bill text and get instant amount extraction with intelligent categorization.
     
-    ### 📋 **How to Use:**
+    ### How to Use:
     1. **Paste your text** directly in the request body (no JSON needed!)
     2. **Click Execute** and get instant results
     3. **Get structured data** with currency, amounts, and types
     
-    ### 📝 **Example Input** (Plain Text):
+    ### Example Input (Plain Text):
     ```
     Medical Bill - Total: INR 1200, Paid: 1000, Due: 200, Discount: 10%
     Hospital: ABC Medical Center
@@ -385,7 +387,7 @@ async def extract_amounts_from_text(text: str = Body(..., media_type="text/plain
     Services: Consultation Rs.500, X-Ray Rs.300, Medicine Rs.400
     ```
     
-    ### 📊 **Example Output:**
+    ### **Example Output:**
     ```json
     {
       "currency": "INR",
@@ -399,12 +401,12 @@ async def extract_amounts_from_text(text: str = Body(..., media_type="text/plain
     }
     ```
     
-    ### ✨ **What We Detect:**
-    - 💰 Total amounts, paid amounts, due balances
-    - 🏥 Individual service charges
-    - 💸 Discounts and offers
-    - 📊 Taxes and additional fees
-    - 🌍 Multiple currencies (INR, USD, EUR, GBP)
+    ### What We Detect:
+    - Total amounts, paid amounts, due balances
+    - Individual service charges
+    - Discounts and offers
+    - Taxes and additional fees
+    - Multiple currencies (INR, USD, EUR, GBP)
     """
     try:
         logger.info(f"Processing text input: {text[:100]}...")
@@ -430,10 +432,10 @@ async def extract_amounts_from_text(text: str = Body(..., media_type="text/plain
         raise HTTPException(status_code=500, detail=f"Processing error: {str(e)}")
 
 @app.post("/extract-amounts-image",
-          summary="📸 Extract Amounts from Medical Bill Image", 
+          summary="Extract Amounts from Medical Bill Image", 
           description="Upload a medical bill image and get instant amount extraction with AI-powered OCR.",
           response_description="Returns detected currency, categorized amounts, and processing status",
-          tags=["💰 Amount Extraction"])
+          tags=["Amount Extraction"])
 async def extract_amounts_from_image(
     file: UploadFile = File(
         ..., 
@@ -442,24 +444,24 @@ async def extract_amounts_from_image(
     )
 ):
     """
-    ## 📸 Extract Amounts from Medical Bill Image
+    ## Extract Amounts from Medical Bill Image
     
     Upload your medical bill image and get instant, accurate amount extraction using advanced AI and OCR technology.
     
-    ### 🎯 **What We Extract:**
-    - 💰 **Total Bill Amount**: Overall cost of medical services
-    - 💳 **Paid Amount**: Amount already paid
-    - 📋 **Due Amount**: Outstanding balance
-    - 🏷️ **Individual Items**: Line-by-line charges
-    - 💸 **Discounts**: Applied reductions
-    - 📊 **Taxes**: GST, service charges, etc.
+    ### What We Extract:
+    - **Total Bill Amount**: Overall cost of medical services
+    - **Paid Amount**: Amount already paid
+    - **Due Amount**: Outstanding balance
+    - **Individual Items**: Line-by-line charges
+    - **Discounts**: Applied reductions
+    - **Taxes**: GST, service charges, etc.
     
-    ### 📁 **Supported Formats:**
+    ### **Supported Formats:**
     - PNG, JPG, JPEG images
     - Clear, readable text
     - Multiple languages supported
     
-    ### 📱 **Example Response:**
+    ### **Example Response:**
     ```json
     {
       "currency": "INR",
@@ -472,8 +474,8 @@ async def extract_amounts_from_image(
     }
     ```
     
-    ### ⚡ **Processing Time:** Usually < 3 seconds
-    ### 🎯 **Accuracy:** 95%+ for clear images
+    ### Processing Time: Usually < 3 seconds
+    ### Accuracy: 95%+ for clear images
     """
     try:
         # Validate file type
@@ -509,6 +511,176 @@ async def extract_amounts_from_image(
     except Exception as e:
         logger.error(f"Error processing image: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Processing error: {str(e)}")
+
+# Initialize direct extraction services
+direct_ocr_service = OCRService()
+direct_extraction_service = DirectExtractionService()
+
+@app.post("/extract-bill-direct",
+    summary="Direct Bill Extraction",
+    description="""
+    **Simple and reliable extraction** - directly extracts amounts from medical bill images 
+    without complex classification. Shows exactly what's found in the image.
+    
+    - **More Accurate**: Uses pattern matching instead of AI classification
+    - **Faster**: No complex processing pipeline  
+    - **Clearer**: Shows the exact source line for each amount
+    
+    Perfect for getting quick, reliable results from medical bills.
+    """
+)
+async def extract_bill_direct(file: UploadFile = File(...)):
+    """Direct extraction endpoint - extract amounts from medical bill image."""
+    try:
+        # Debug: Log what we received
+        logger.info(f"=== DEBUG: Received request ===")
+        logger.info(f"File object: {file}")
+        logger.info(f"File type: {type(file)}")
+        if file:
+            logger.info(f"File filename: {file.filename}")
+            logger.info(f"File content_type: {file.content_type}")
+            logger.info(f"File size (if available): {getattr(file, 'size', 'Unknown')}")
+        else:
+            logger.error("File is None or missing!")
+        
+        # Better error handling for missing file
+        if not file:
+            raise HTTPException(
+                status_code=400, 
+                detail={
+                    "error": "No file provided",
+                    "postman_instructions": {
+                        "method": "POST",
+                        "url": "http://localhost:8000/extract-bill-direct",
+                        "body_type": "form-data",
+                        "key": "file",
+                        "key_type": "File (not Text)",
+                        "value": "Select your image file"
+                    }
+                }
+            )
+        
+        # Validate file type
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid file type: {file.content_type}. Please upload an image file (PNG, JPG, etc.)"
+            )
+        
+        # Read image data
+        image_data = await file.read()
+        
+        # Check if file is empty
+        if not image_data:
+            raise HTTPException(
+                status_code=400,
+                detail="Uploaded file is empty. Please upload a valid image file."
+            )
+        
+        logger.info(f"Processing uploaded file: {file.filename} ({len(image_data)} bytes)")
+        
+        # Step 1: OCR extraction
+        ocr_result = await direct_ocr_service.extract_from_image(image_data)
+        
+        if ocr_result.status != "success":
+            return {
+                "status": "error",
+                "message": f"OCR extraction failed: {ocr_result.reason}",
+                "confidence": ocr_result.confidence
+            }
+        
+        # Step 2: Direct extraction
+        extracted_amounts = direct_extraction_service.extract_with_fallback(ocr_result.original_text)
+        
+        # Step 3: Format results
+        results = direct_extraction_service.format_results(extracted_amounts)
+        
+        # Add OCR info to results
+        results["ocr_confidence"] = ocr_result.confidence
+        results["raw_ocr_text"] = ocr_result.original_text
+        
+        logger.info(f"Successfully extracted {len(extracted_amounts)} amounts from {file.filename}")
+        
+        return results
+        
+    except Exception as e:
+        logger.error(f"Error processing file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Processing error: {str(e)}")
+
+@app.post("/extract-bill-text-direct",
+    summary="Direct Text Extraction", 
+    description="""
+    **Direct extraction from text input** - extract amounts from medical bill text
+    using simple pattern matching.
+    
+    Great for testing or when you already have the bill text.
+    """
+)
+async def extract_bill_from_text_direct(request: dict = Body(...)):
+    """Direct extraction from text input."""
+    try:
+        text = request.get("text", "")
+        if not text:
+            raise HTTPException(status_code=400, detail="Text field is required")
+            
+        logger.info("Processing text input")
+        
+        # Direct extraction
+        extracted_amounts = direct_extraction_service.extract_with_fallback(text)
+        
+        # Format results
+        results = direct_extraction_service.format_results(extracted_amounts)
+        results["input_text"] = text
+        
+        logger.info(f"Successfully extracted {len(extracted_amounts)} amounts from text")
+        
+        return results
+        
+    except Exception as e:
+        logger.error(f"Error processing text: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Processing error: {str(e)}")
+
+@app.post("/debug-upload",
+    summary="Debug Upload",
+    description="Debug endpoint to see what Postman is sending"
+)
+async def debug_upload(file: UploadFile = File(None)):
+    """Debug endpoint to troubleshoot Postman uploads."""
+    logger.info("=== DEBUG UPLOAD ENDPOINT ===")
+    logger.info(f"Received file: {file}")
+    
+    if not file:
+        return {
+            "status": "error",
+            "message": "No file received",
+            "postman_help": {
+                "step1": "Set method to POST",
+                "step2": "URL: http://localhost:8000/debug-upload",
+                "step3": "Go to Body tab",
+                "step4": "Select 'form-data'",
+                "step5": "Key: 'file' (dropdown must be 'File' not 'Text')",
+                "step6": "Select your image file",
+                "step7": "Click Send"
+            }
+        }
+    
+    try:
+        file_content = await file.read()
+        return {
+            "status": "success",
+            "file_info": {
+                "filename": file.filename,
+                "content_type": file.content_type,
+                "size": len(file_content),
+                "size_human": f"{len(file_content) / 1024:.1f} KB"
+            },
+            "message": "File received successfully! Now try the main endpoint /extract-bill-direct"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error reading file: {str(e)}"
+        }
 
 def custom_openapi():
     """Custom OpenAPI schema with proper validation error models"""

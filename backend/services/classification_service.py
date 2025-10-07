@@ -286,7 +286,28 @@ class ClassificationService:
                 service_name = match.group(1).strip().lower()
                 
                 # Map service names to types (check all variations)
+                # Start with medical bill financial terms for better precision
                 service_mappings = {
+                    # Financial terms - be specific about different types of "amount"
+                    'final amount': 'total_bill',
+                    'grand total': 'total_bill',
+                    'net amount': 'total_bill',
+                    'total amount': 'total_bill', 
+                    'sub total': 'total_bill',
+                    'subtotal': 'total_bill',
+                    'amount paid': 'paid',
+                    'paid amount': 'paid',
+                    'payment': 'paid',
+                    'amount due': 'due',
+                    'due amount': 'due',
+                    'balance': 'due',
+                    'outstanding': 'due',
+                    'discount': 'discount',
+                    'concession': 'discount',
+                    'tax': 'tax',
+                    'gst': 'tax',
+                    'vat': 'tax',
+                    # Medical services
                     'consultation': 'consultation',
                     'consult': 'consultation',
                     'x-ray': 'x_ray', 

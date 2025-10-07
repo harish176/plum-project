@@ -163,20 +163,44 @@ class TextProcessor:
                     corrected = corrected[:match.start()] + new_value + corrected[match.end():]
                     corrections.append(f"Currency amount: '{original}' -> '{new_value}'")
         
-        # Second pass: general word-based corrections
+        # Second pass: general digit corrections in numeric contexts (do this BEFORE word corrections)
         for wrong_char, correct_char in self.digit_correction_map.items():
             if wrong_char in corrected:
                 # Only correct if it's in a numeric context
                 pattern = rf'\b\w*{re.escape(wrong_char)}\w*\b'
-                matches = re.finditer(pattern, corrected)
+                matches = list(re.finditer(pattern, corrected))
                 
-                for match in matches:
+                # Process matches in reverse order to avoid index issues
+                for match in reversed(matches):
                     word = match.group()
                     # Check if the word looks like it should be numeric
                     if self._looks_numeric(word):
                         corrected_word = word.replace(wrong_char, correct_char)
-                        corrected = corrected.replace(word, corrected_word, 1)
+                        corrected = corrected[:match.start()] + corrected_word + corrected[match.end():]
                         corrections.append(f"'{wrong_char}' -> '{correct_char}' in '{word}'")
+        
+        # Third pass: word-level OCR corrections for common medical bill terms
+        word_corrections = [
+            (r'\bAm0unt\b', 'Amount'),
+            (r'\bam0unt\b', 'amount'),
+            (r'\bT0tal\b', 'Total'),
+            (r'\bt0tal\b', 'total'),
+            (r'\bBa1ance\b', 'Balance'),
+            (r'\bba1ance\b', 'balance'),
+            (r'\bFina1\b', 'Final'),
+            (r'\bfina1\b', 'final'),
+            (r'\bPa1d\b', 'Paid'),
+            (r'\bpa1d\b', 'paid'),
+            (r'\bD1scount\b', 'Discount'),
+            (r'\bd1scount\b', 'discount'),
+        ]
+        
+        for pattern, replacement in word_corrections:
+            if re.search(pattern, corrected):
+                old_text = corrected
+                corrected = re.sub(pattern, replacement, corrected)
+                if old_text != corrected:
+                    corrections.append(f"Word correction: '{pattern}' -> '{replacement}'")
         
         return corrected, corrections
     
